@@ -1,0 +1,17 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+log-set = {editable = true, path = "."}
+
+[dev-packages]
+mypy = "*"
+black = "*"
+pytest = "*"
+flit = "*"
+types-pyyaml = "*"
+
+[requires]
+python_version = "3.9"
