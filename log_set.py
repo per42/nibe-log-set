@@ -20,7 +20,8 @@ __version__ = "1.0.0"
 from argparse import ArgumentParser, FileType
 import json
 from logging import basicConfig, debug
-from typing import Mapping, TextIO
+from typing import Mapping, TextIO, Iterable, Optional
+from re import search
 
 import yaml
 from jsonschema import validate
@@ -38,6 +39,18 @@ def main() -> None:
     operation = parser.add_subparsers(required=True, dest="operation")
 
     op_sche = operation.add_parser("generate-schema")
+    op_sche.add_argument(
+        "--systems",
+        type=int,
+        choices=range(1, 9),
+        nargs="+",
+        help="Only include set of systems",
+    )
+    op_sche.add_argument(
+        "--write",
+        action="store_true",
+        help="Only include writable variables",
+    )
     op_sche.add_argument(
         "--schema",
         type=FileType("wt", encoding="utf_8"),
@@ -61,14 +74,16 @@ def main() -> None:
     debug(args)
 
     if args.operation == "generate-schema":
-        generate_schema(args.nibe_model, args.schema)
+        generate_schema(args.nibe_model, args.systems, args.write, args.schema)
     elif args.operation == "generate-log-set":
         args.log_set.reconfigure(newline="\r\n")
         generate_log_set(args.nibe_model, args.variables, args.log_set)
 
 
-def generate_schema(model: str, schema: TextIO) -> None:
-    json.dump(get_schema(model), schema, indent=4, sort_keys=False)
+def generate_schema(
+    model: str, systems: Optional[Iterable[int]], write: bool, schema: TextIO
+) -> None:
+    json.dump(get_schema(model, systems, write), schema, indent=4, sort_keys=False)
 
 
 def generate_log_set(model: str, variables: TextIO, log_set: TextIO) -> None:
@@ -95,7 +110,9 @@ def generate_log_set(model: str, variables: TextIO, log_set: TextIO) -> None:
     log_set.write("\n".join(addr[k] for k in names))
 
 
-def get_schema(model: str) -> Mapping:
+def get_schema(
+    model: str, systems: Iterable[int] = None, write: bool = False
+) -> Mapping:
     coils = Model(model).get_coil_data()
 
     return {
@@ -106,14 +123,30 @@ def get_schema(model: str) -> Mapping:
         "additionalItems": False,
         "items": {
             "oneOf": [
-            {
-                "type": "string",
-                "const": c["name"],
-                "description": c.get("info", c["title"])
-
-            } for c in coils.values()]
+                {
+                    "type": "string",
+                    "const": c["name"],
+                    "description": c["title"]
+                    + (f" [{c['unit']}]" if "unit" in c else "")
+                    + ("\n" + c["info"] if "info" in c else ""),
+                }
+                for c in coils.values()
+                if filter_coil(c, systems, write)
+            ]
         },
     }
+
+
+def filter_coil(coil: dict, systems: Iterable[int] = None, write: bool = False) -> bool:
+    if systems is not None:
+        m = search(r"-(?:syst(?:em)?-?|s)(?P<system>[1-8])-", coil["name"])
+        if m is not None and int(m["system"]) not in systems:
+            return False
+
+    if write and not coil.get("write", False):
+        return False
+
+    return True
 
 
 if __name__ == "__main__":

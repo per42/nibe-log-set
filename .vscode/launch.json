@@ -9,7 +9,11 @@
             "type": "python",
             "request": "launch",
             "module": "log_set",
-            "args": ["generate-schema"],
+            "args": [
+                "generate-schema",
+                "--systems",
+                "1"
+            ],
             "justMyCode": true
         },
         {
@@ -17,7 +21,24 @@
             "type": "python",
             "request": "launch",
             "module": "log_set",
-            "args": ["generate-log-set"],
+            "args": [
+                "generate-log-set"
+            ],
+            "justMyCode": true
+        },
+        {
+            "name": "writable schema",
+            "type": "python",
+            "request": "launch",
+            "module": "log_set",
+            "args": [
+                "generate-schema",
+                "--systems",
+                "1",
+                "--write",
+                "--schema",
+                "write-schema.json"
+            ],
             "justMyCode": true
         }
     ]
